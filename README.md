@@ -1,191 +1,221 @@
 # Single-Server Key-Value Store
 
-A lightweight key-value store built with Python and Flask for **Cloud Computing — Coding Assignment 1**.
+**Cloud Computing — Coding Assignments 1 and 2**  
+**Student:** Samarth Kumar Samal  
+**Technologies:** Python 3.13, Flask, Docker, Threading, JSON, Requests
 
-The server allows clients to create, retrieve, update, and delete key-value pairs through HTTP requests. Data is stored in memory for fast access, while thread synchronization, operation logging, and periodic snapshots provide safe concurrent access and basic data recovery.
+## 1. Project Overview
 
-## 1. Features
+This project implements a single-server key-value store that clients can access through a REST-style HTTP API. It supports creating, reading, updating, and deleting key-value pairs, while protecting shared data from concurrent access.
 
-- **Key-value operations:** Supports GET, POST, PUT, and DELETE requests.
-- **Concurrent request handling:** Handles multiple clients using Flask's threaded server.
-- **Thread-safe storage:** Uses a lock to protect the shared dictionary.
-- **Data persistence:** Saves snapshots every 10 seconds and restores data when the server restarts.
-- **Operation logging:** Records requests, keys, timestamps, and HTTP status codes.
-- **Performance testing:** Measures throughput and latency under concurrent workloads.
+The project was completed in two stages:
 
-## 2. Technologies Used
-
-| Technology | Purpose |
+| Assignment | Scope |
 |---|---|
-| Python | Application and storage implementation |
-| Flask | HTTP server and API endpoints |
-| Threading | Concurrency control and background tasks |
-| Requests | HTTP benchmarking and testing |
-| JSON | Request data, responses, and persistent snapshots |
+| **Assignment 1 — Key-Value Store** | Build and test a threaded Flask server with in-memory storage, logging, persistence, and performance benchmarks. |
+| **Assignment 2 — Dockerization** | Package the same application in a lightweight Linux container, expose port 8080, and verify API functionality, concurrency, and data recovery. |
+
+Both versions use the same application code. Docker changes how the application is packaged and run; it does not replace the storage implementation.
+
+## 2. Features
+
+- **REST API:** GET, POST, PUT, and DELETE operations on individual keys.
+- **Thread-safe storage:** A shared Python dictionary protected by `threading.Lock`.
+- **Concurrent clients:** Flask handles multiple requests using threaded mode.
+- **Asynchronous logging:** Timestamped operation records are written to `logs/operations.log` through a logging queue.
+- **Persistence:** JSON snapshots are saved every 10 seconds and restored when the server starts.
+- **Performance measurement:** Benchmarks report throughput, average latency, and latency percentiles.
+- **Docker deployment:** A Python 3.13 Alpine image runs the server on port 8080 with named volumes for data and logs.
 
 ## 3. Project Structure
 
 ```text
 single-server-kv-store/
 ├── app/
-│   ├── server.py
-│   ├── kv_store.py
-│   ├── logger.py
-│   └── persistence.py
+│   ├── server.py                 # Flask routes and server startup
+│   ├── kv_store.py               # Thread-safe key-value storage
+│   ├── logger.py                 # Asynchronous operation logging
+│   └── persistence.py            # Save and restore JSON snapshots
 ├── benchmarks/
-│   ├── provided_benchmark.py
-│   ├── corrected_benchmark.py
-│   └── get_hit_benchmark.py
+│   ├── provided_benchmark.py     # Professor's original benchmark
+│   ├── corrected_benchmark.py    # Mixed-workload performance test
+│   └── get_hit_benchmark.py      # Successful GET performance test
 ├── tests/
 │   ├── test_concurrent_put.py
 │   ├── test_concurrent_delete.py
 │   └── test_mixed_concurrency.py
-├── data/
-├── logs/
-└── README.md
+├── Dockerfile                    # Docker image instructions
+├── .dockerignore                 # Excludes unnecessary build files
+├── requirements.txt              # Python dependencies
+├── README.md
+└── Report.md                     # Assignment report
 ```
 
-The `app` directory contains the server implementation. The `benchmarks` directory contains scripts for measuring performance, and the `tests` directory contains concurrency tests.
+The application creates `data/` and `logs/` at runtime as needed. These directories are not copied into the Docker image; Docker named volumes hold their contents when the container runs.
 
-The `data` and `logs` directories store generated snapshots and operation logs.
-
-## 4. Installation and Setup
+## 4. Assignment 1 — Running the Application Locally
 
 ### Prerequisites
 
-- Python 3
-- pip
-- Windows Command Prompt or a VS Code terminal
+- Python 3.13 (or a compatible Python 3 version)
+- pip and a terminal
 
-### Create and activate a virtual environment
-
-Open a terminal in the project directory:
+From the project directory, create a virtual environment, activate it in **Windows Command Prompt**, and install the dependencies:
 
 ```cmd
 python -m venv .venv
 .venv\Scripts\activate
+pip install -r requirements.txt
 ```
 
-If a virtual environment already exists, simply activate it.
-
-### Install dependencies
-
-```cmd
-pip install flask requests
-```
-
-### Start the server
+Start the Flask server:
 
 ```cmd
 python app/server.py
 ```
 
-The server runs at:
+Open **http://127.0.0.1:8080/** to check that it is running. For local execution, Flask listens on `127.0.0.1` by default. Keep the server terminal open while testing.
 
-**http://127.0.0.1:8080**
+**Note:** If the Docker container is already using port 8080, stop it with `docker stop cloud-kv-store` before launching the local server.
 
-Keep this terminal open while sending requests or running tests.
+## 5. API Reference
 
-## 5. API Endpoints
+The same endpoints work for both local execution and Docker deployment.
 
-The application exposes the following HTTP endpoints:
-
-| Method | Endpoint | Description | Response |
+| HTTP Method | Endpoint | Action | Expected status |
 |---|---|---|---|
-| GET | `/` | Check server availability | 200 |
-| GET | `/<key>` | Retrieve a stored value | 200 or 404 |
-| POST | `/<key>` | Create or update a key | 201 or 200 |
-| PUT | `/<key>` | Create or update a key | 201 or 200 |
-| DELETE | `/<key>` | Delete an existing key | 200 or 404 |
+| GET | `/` | Check server health | 200 |
+| GET | `/<key>` | Retrieve an existing key | 200; 404 if missing |
+| POST | `/<key>` | Create or update a key | 201 if created; 200 if updated |
+| PUT | `/<key>` | Create or update a key | 201 if created; 200 if updated |
+| DELETE | `/<key>` | Remove a key | 200; 404 if missing |
 
-For POST and PUT, the request body must be valid JSON containing a `value` field. Invalid input returns HTTP 400.
+POST and PUT require a JSON object containing a `value` field. Invalid input returns HTTP 400.
 
-### Create a key
+### API examples (Windows Command Prompt)
 
-```cmd
-curl -X POST http://127.0.0.1:8080/course -H "Content-Type: application/json" -d "{\"value\":\"Cloud Computing\"}"
-```
-
-A new key returns HTTP 201. If the key already exists, its value is updated and the server returns HTTP 200.
-
-### Retrieve a key
+**Create a key:**
 
 ```cmd
-curl http://127.0.0.1:8080/course
+curl -i -X POST http://127.0.0.1:8080/course -H "Content-Type: application/json" -d "{\"value\":\"Cloud Computing\"}"
 ```
 
-Example response:
+**Retrieve the key:**
+
+```cmd
+curl -i http://127.0.0.1:8080/course
+```
+
+An existing key returns a response such as:
 
 ```json
-{
-  "key": "course",
-  "value": "Cloud Computing"
-}
+{"key":"course","value":"Cloud Computing"}
 ```
 
-If the key does not exist, the server returns HTTP 404.
-
-### Update a key
+**Update the key:**
 
 ```cmd
-curl -X PUT http://127.0.0.1:8080/course -H "Content-Type: application/json" -d "{\"value\":\"Distributed Systems\"}"
+curl -i -X PUT http://127.0.0.1:8080/course -H "Content-Type: application/json" -d "{\"value\":\"Distributed Systems\"}"
 ```
 
-### Delete a key
+**Delete the key:**
 
 ```cmd
-curl -X DELETE http://127.0.0.1:8080/course
+curl -i -X DELETE http://127.0.0.1:8080/course
 ```
 
-A successful deletion returns HTTP 200. Deleting a missing key returns HTTP 404.
+A subsequent GET returns HTTP 404 because the key no longer exists.
 
-## 6. Implementation Details
+## 6. Assignment 1 — Implementation Details
 
-### In-Memory Storage
+### In-memory storage and concurrency
 
-The `KeyValueStore` class in `app/kv_store.py` uses a Python dictionary to store key-value pairs.
+`app/kv_store.py` implements a `KeyValueStore` backed by a Python dictionary. A shared `threading.Lock` protects each read, write, delete, and snapshot operation. Flask runs in threaded mode, allowing multiple requests to share the same store without corrupting its state.
 
-Dictionary operations provide efficient key lookup, insertion, and deletion. A shared lock protects the dictionary so concurrent requests cannot access or modify it in an unsafe manner.
+### Operation logging
 
-The class implements methods for retrieving, inserting, updating, deleting, and snapshotting stored data.
+`app/logger.py` uses queue-based asynchronous logging. Request handlers enqueue records containing the operation, key, and HTTP status; a background listener writes timestamped records to `logs/operations.log`. Routine Werkzeug access logging is suppressed, while application operation logging remains enabled.
 
-### Concurrent Request Handling
+### Persistence and recovery
 
-The server runs Flask in threaded mode, allowing multiple HTTP requests to be processed concurrently.
+`app/persistence.py` periodically saves a consistent JSON snapshot. It writes to a temporary file and atomically replaces the previous snapshot to reduce the risk of partial files. The server restores the latest snapshot on startup and attempts a final save during graceful shutdown.
 
-Because all request threads share the same key-value store, synchronization is necessary. The storage lock ensures that individual operations on the dictionary execute safely, even when multiple clients access the same key.
+Snapshots occur every **10 seconds**, not after every write. An unexpected shutdown can therefore lose updates made since the most recent snapshot.
 
-### Asynchronous Logging
+## 7. Assignment 2 — Docker Deployment
 
-The application records operations using a queue-based logging system implemented in `app/logger.py`.
+### Prerequisites
 
-Request threads submit log messages to a queue, and a background listener writes those messages to `logs/operations.log`.
+Install Docker Desktop and make sure its **Linux container engine is running**. Verify it with:
 
-Each record includes information such as the operation type, key, HTTP status, and timestamp.
+```cmd
+docker --version
+docker info
+```
 
-Routine Werkzeug access messages are disabled to reduce console output during benchmarking. Application operation logging remains enabled.
+### Docker image configuration
 
-### Persistence and Recovery
+The root-level `Dockerfile` uses **`python:3.13-alpine`**, installs packages from `requirements.txt`, copies the `app/` directory, documents port 8080, and launches `python app/server.py` automatically.
 
-The persistence module saves the in-memory dictionary as a JSON snapshot every 10 seconds.
+The container sets `HOST=0.0.0.0` so Flask accepts connections through Docker's published port. Outside Docker, the server retains its default `127.0.0.1` address. The `.dockerignore` file excludes virtual environments, caches, generated data, local logs, tests, and documentation from the build context.
 
-Snapshots are written to a temporary file before replacing the existing snapshot, helping avoid partially written snapshot files.
+### Build the image
 
-When the server starts, it restores data from the latest available snapshot. During a graceful shutdown, it also attempts to save the current state.
+From the project root, run:
 
-Because persistence is periodic rather than performed after every request, an unexpected crash may cause changes made after the latest snapshot to be lost.
+```cmd
+docker build -t cloud-kv-store:1.0 .
+```
 
-## 7. Testing
+The final period (`.`) is required: it specifies the current folder as the Docker build context.
 
-The implementation includes three concurrency tests.
+### Run the container
 
-| Test | Purpose | Result |
-|---|---|---|
-| Concurrent PUT | Tests multiple writes to the same key | Passed |
-| Concurrent DELETE | Tests simultaneous deletion attempts | Passed |
-| Mixed concurrency | Tests concurrent GET, PUT, and DELETE requests | Passed |
+Stop any locally running Flask server that occupies port 8080, then run:
 
-Run the tests from the project root while the server is running:
+```cmd
+docker run -d --name cloud-kv-store -p 8080:8080 -v kv-store-data:/app/data -v kv-store-logs:/app/logs cloud-kv-store:1.0
+```
+
+| Option | Purpose |
+|---|---|
+| `-d` | Run in the background |
+| `--name cloud-kv-store` | Assign a recognizable container name |
+| `-p 8080:8080` | Publish container port 8080 on the host |
+| `-v kv-store-data:/app/data` | Persist JSON snapshots outside the container |
+| `-v kv-store-logs:/app/logs` | Persist application log files outside the container |
+
+Check the running container and API:
+
+```cmd
+docker ps
+curl http://127.0.0.1:8080/
+```
+
+The health endpoint should return:
+
+```json
+{"message":"Key-Value Store Server is Running","status":"success"}
+```
+
+### Manage the container
+
+```cmd
+docker stop cloud-kv-store
+docker start cloud-kv-store
+docker restart cloud-kv-store
+docker logs cloud-kv-store
+```
+
+`docker logs` displays container console output. Detailed operation records are saved separately in `logs/operations.log` within the logs volume.
+
+If you remove the container with `docker rm cloud-kv-store`, recreate it with the same `docker run` command to reconnect the existing named volumes. **Do not remove the volumes** if you want to preserve saved data.
+
+## 8. Testing and Verification
+
+### Concurrency tests
+
+With either the local Flask server or Docker container running on port 8080, execute from the project root:
 
 ```cmd
 python tests/test_concurrent_put.py
@@ -193,99 +223,43 @@ python tests/test_concurrent_delete.py
 python tests/test_mixed_concurrency.py
 ```
 
-All three tests passed during final verification.
+| Test | Observed result | Status |
+|---|---|---|
+| Concurrent PUT | 10 requests: 1 creation, 9 updates | Passed |
+| Concurrent DELETE | 10 requests: 1 deletion, 9 missing-key responses | Passed |
+| Mixed concurrency | 15 GET/PUT/DELETE requests; consistent final state | Passed |
 
-Python syntax was also checked using:
+These three tests passed both during Assignment 1 verification and against the Dockerized application in Assignment 2.
 
-```cmd
-python -m compileall -q app benchmarks tests
+### Docker API and persistence tests
+
+The container passed the health check, POST, GET, PUT, DELETE, and missing-key HTTP 404 tests.
+
+Persistence was verified by creating a key, allowing the periodic snapshot to run, and then retrieving the same value after both a **container restart** and **removal/recreation with the same volumes**:
+
+```json
+{"key":"persistence-test","value":"Docker persistence working"}
 ```
 
-## 8. Performance Benchmarking
+Both recovery checks returned HTTP 200 with the expected value.
 
-The project includes the professor's original benchmark and two additional benchmarks.
+## 9. Assignment 1 — Performance Results
 
-### Professor's Original Benchmark
+The following measurements were collected for the **Assignment 1 server**, not as Docker performance results. Tests used **three client threads**, matching the professor's configuration.
 
-```cmd
-python benchmarks/provided_benchmark.py
-```
+| Benchmark | Throughput | Average latency | Notes |
+|---|---:|---:|---|
+| Professor's original script | 1,294.53 reported operations/sec | 4.66 ms reported | 0.46-second run; reported operation count is inflated |
+| Original script, adjusted request count | Approximately 647 HTTP requests/sec | Not reliably measured for all requests | 300 actual requests, not 600 |
+| Corrected mixed-workload benchmark | **261.94 requests/sec** | **11.447 ms** | Mean of 3 runs with 3,000 requests each |
+| Successful GET benchmark | **270.45 requests/sec** | **10.930 ms** | Mean of 3 runs with 3,000 successful GETs each |
 
-Recorded results:
+The corrected mixed-workload benchmark recorded **P95 = 27.404 ms** and **P99 = 29.679 ms**, with no unexpected failures. Its workload contains 50% POST requests and 50% GET requests for missing keys (expected HTTP 404).
 
-| Metric | Result |
-|---|---:|
-| Client threads | 3 |
-| Actual HTTP requests | 300 |
-| Reported operations | 600 |
-| Execution time | 0.46 seconds |
-| Reported throughput | 1,294.53 operations/sec |
-| Approximate actual throughput | 647 requests/sec |
-| Reported average latency | 4.66 ms |
+**Measurement caveat:** The professor's script reports 600 operations although it sends only 300 HTTP requests, so its throughput is roughly double the actual request rate. Its average latency also excludes some requests. The shorter original test and longer corrected tests are different workloads and should not be treated as a direct performance comparison. No separate containerized throughput benchmark is claimed here.
 
-The original script reports 600 operations even though it sends 300 HTTP requests. Consequently, the reported throughput is approximately twice the actual HTTP request throughput.
+## 10. Limitations and Conclusion
 
-Its latency calculation also does not include every request.
+This is a single-server implementation without replication or authentication. Persistence is periodic, so a sudden shutdown can lose recent changes. Flask's built-in server is appropriate for the assignment and local testing but is not intended as a production deployment server.
 
-### Corrected Mixed-Workload Benchmark
-
-```cmd
-python benchmarks/corrected_benchmark.py
-```
-
-This benchmark measures every attempted HTTP request, including responses with HTTP 404.
-
-It uses three client threads, with 1,000 requests per thread.
-
-Average results across three runs:
-
-| Metric | Result |
-|---|---:|
-| Total requests per run | 3,000 |
-| Average throughput | 261.94 requests/sec |
-| Average latency | 11.447 ms |
-| P95 latency | 27.404 ms |
-| P99 latency | 29.679 ms |
-| Unexpected failures | 0 |
-
-The workload consists of 50% POST requests that create keys and 50% GET requests targeting nonexistent keys. HTTP 404 is the expected result for those GET requests.
-
-### Successful GET Benchmark
-
-```cmd
-python benchmarks/get_hit_benchmark.py
-```
-
-This test measures the server's performance when retrieving a key that already exists.
-
-Average results across three 3,000-request runs:
-
-| Metric | Result |
-|---|---:|
-| Client threads | 3 |
-| Total requests per run | 3,000 |
-| Average throughput | 270.45 requests/sec |
-| Average latency | 10.930 ms |
-| P95 latency | 26.979 ms |
-| P99 latency | 28.952 ms |
-| Failed requests | 0 |
-
-These benchmarks measure different workloads, so their results should not be interpreted as a direct comparison of server optimizations.
-
-## 9. Limitations
-
-This implementation is designed for a single server rather than a distributed environment.
-
-- Data is maintained in one server process, without replication.
-- Persistence uses periodic snapshots rather than saving after every update.
-- The API does not implement authentication.
-- Flask's built-in development server is intended for local testing rather than production deployment.
-- Network access is restricted to the local machine through `127.0.0.1`.
-
-## 10. Summary
-
-The project implements a working single-server key-value store with REST-style HTTP operations, thread-safe access, asynchronous logging, and periodic persistence.
-
-Functional and concurrency tests passed, and benchmark measurements were collected using the professor's original workload and additional tests.
-
-The implementation meets the core objectives of the assignment while providing basic persistence and performance-measurement capabilities.
+**Assignment 1** delivered a functioning, thread-safe key-value store with logging, persistence, concurrency tests, and performance measurements. **Assignment 2** successfully packaged that same application into a Docker image, exposed its API on port 8080, and verified CRUD operations, concurrency, and persistence across container replacement.

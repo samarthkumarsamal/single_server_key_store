@@ -1,0 +1,40 @@
+
+# Python virtual environments
+.venv/
+venv/
+env/
+
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+
+# Git files
+.git/
+.gitignore
+
+# Environment variables and secrets
+.env
+.env.*
+
+# Generated logs and persistence data
+logs/
+data/
+
+# Test and benchmark files
+tests/
+benchmarks/
+
+# Documentation and local reports
+README.md
+Report.md
+*.docx
+*.pdf
+
+# Operating system and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Temporary files
+*.tmp
+*.temp
