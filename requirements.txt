@@ -1,0 +1,5 @@
+# Asynchronous HTTP server and client
+aiohttp==3.14.5
+
+# HTTP client for testing and benchmarking
+requests==2.34.2
