@@ -1,0 +1,41 @@
+# Exclude Python bytecode and cache directories.
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Exclude local Python environments and installed packages.
+kvstore/
+venv/
+.venv/
+env/
+
+# Keep local database records outside the Docker image.
+kv_data.json
+kv_data.json.tmp
+
+# Exclude generated operation logs.
+kv_operations.log
+*.log
+
+# Exclude editor settings and temporary test artifacts.
+.vscode/
+.idea/
+.pytest_cache/
+*.ipynb
+
+# Exclude local experimental and backup directories.
+backups/
+experiments/
+
+# Exclude Git metadata and local environment configuration.
+.git/
+.env
+.env.*
+
+# Exclude generated archives and temporary artifacts.
+*.zip
+*.tar
+*.tmp
+*.bak
